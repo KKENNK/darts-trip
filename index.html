@@ -30,7 +30,7 @@ button{font:inherit;font-weight:800;font-size:18px;color:var(--ink);background:v
 button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 </style></head><body>
 <div id="app"><canvas id="c"></canvas>
-<div class="hud"><div>残り <b id="left">10</b> 投</div><div>訪れた <b id="cnt">0</b> / 47</div></div>
+<div class="hud"><div>残り <b id="left">10</b> 投</div></div>
 <div id="banner"><h1></h1><p></p></div>
 <div id="hint">上にスワイプで投擲</div>
 <div id="end"><h2>旅行先が決まりました</h2><ol id="trip"></ol><button id="again">もう一度</button></div>
@@ -87,15 +87,14 @@ function land(){const{tx:x0,ty:y0}=fl;const x=x0-mx,y=y0-my;const[lo,la]=geo(x,y
  marks.push({x,y,r:Math.random()*6.28});fl=null;
  hist.push(onLand?bi:-1);if(onLand){const nw=!visited.has(bi);visited.add(bi);banner(pref(P[bi][0])+'に着弾','')}
  else banner('海に落ちた…',x0<0||x0>W||y0<0?'場外です。強さを調整してみよう。':'次は陸を狙おう。');
- $('cnt').textContent=visited.size;
- if(left===0){over=true;setTimeout(end,1600)}}
+  if(left===0){over=true;setTimeout(end,1600)}}
 function end(){
  const ol=$('trip');ol.innerHTML='';
  hist.forEach((b,i)=>{const li=document.createElement('li'),n=document.createElement('b');n.textContent=(i+1)+'.';li.appendChild(n);
   if(b<0){li.className='x';li.append('海(はずれ)')}else li.append(pref(P[b][0])+(hist.indexOf(b)<i?'(再訪)':''));ol.appendChild(li)});
 
  $('end').classList.add('on')}
-function reset(){hist=[];left=10;visited=new Set();marks=[];fl=null;over=false;first=true;newPass();$('left').textContent=10;$('cnt').textContent=0;$('end').classList.remove('on');$('hint').style.opacity=.75}
+function reset(){hist=[];left=10;visited=new Set();marks=[];fl=null;over=false;first=true;newPass();$('left').textContent=10;$('end').classList.remove('on');$('hint').style.opacity=.75}
 $('again').onclick=reset;
 function launch(vx,vy){const sN=Math.hypot(vx,vy)*1000/H;
  if(vy>-.25||sN<.8){banner('もっと勢いよく!','上に向かって素早くスワイプしてください。');return}
