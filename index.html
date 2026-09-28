@@ -55,11 +55,15 @@ function fit(){dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.wid
 function inPoly(x,y,p){let c=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const[a,b]=p[i],[d,e]=p[j];if((b>y)!=(e>y)&&x<(d-a)*(y-b)/(e-b)+a)c=!c}return c}
 const pref=n=>n==='北海道'?n:n==='東京'?'東京都':(n==='大阪'||n==='京都')?n+'府':n+'県';
 let mx=0,my=0,dir=0,lt=0;
-function newPass(){dir=Math.floor(Math.random()*4);const mw=16.5*K*S,mh=14.7*S;mx=my=0;
- if(dir===0)my=-(Y0+mh);else if(dir===1)my=H*.8-Y0;else if(dir===2)mx=W-X0;else mx=-(X0+mw)}
-function move(dt){const v=H*.16*dt,mw=16.5*K*S,mh=14.7*S;let done=false;
- if(dir===0){my+=v;done=my>H*.8-Y0}else if(dir===1){my-=v;done=my<-(Y0+mh)}else if(dir===2){mx-=v;done=mx<-(X0+mw)}else{mx+=v;done=mx>W-X0}
- if(done)newPass()}
+let bx=0,by=0,wavy=false,spd=1,ph=0;
+function apply(){mx=bx;my=by;if(!wavy)return;const w=Math.sin(ph);if(dir<2)mx+=W*.18*w;else my+=H*.07*w}
+let pd=-1,pw=false;
+function newPass(){do{dir=Math.floor(Math.random()*4);wavy=Math.random()<1/3}while(dir===pd&&wavy===pw);pd=dir;pw=wavy;spd=[1,1.05,1.1][Math.floor(Math.random()*3)];ph=0;
+ const mw=16.5*K*S,mh=14.7*S;bx=by=0;
+ if(dir===0)by=-(Y0+mh);else if(dir===1)by=H*.8-Y0;else if(dir===2)bx=W-X0;else bx=-(X0+mw);apply()}
+function move(dt){const v=H*.16*spd*dt,mw=16.5*K*S,mh=14.7*S;let done=false;ph+=dt*2.2;
+ if(dir===0){by+=v;done=by>H*.8-Y0}else if(dir===1){by-=v;done=by<-(Y0+mh)}else if(dir===2){bx-=v;done=bx<-(X0+mw)}else{bx+=v;done=bx>W-X0}
+ if(done)newPass();else apply()}
 let hist=[],left=10,visited=new Set(),marks=[],fl=null,trail=[],over=false,drag=null,first=true;
 function dart(x,y,s,spin){g.save();g.translate(x,y);g.rotate(spin);g.scale(s,s);
  g.fillStyle='#0006';g.beginPath();g.ellipse(4,6,16,16,0,0,7);g.fill();
