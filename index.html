@@ -57,12 +57,15 @@ const pref=n=>n==='北海道'?n:n==='東京'?'東京都':(n==='大阪'||n==='京
 let mx=0,my=0,dir=0,lt=0;
 let bx=0,by=0,wavy=false,spd=1,ph=0;
 function apply(){mx=bx;my=by;if(!wavy)return;const w=Math.sin(ph);if(dir<2)mx+=W*.18*w;else my+=H*.07*w}
-let pd=-1,pw=false;
-function newPass(){do{dir=Math.floor(Math.random()*4);wavy=Math.random()<1/3}while(dir===pd&&wavy===pw);pd=dir;pw=wavy;spd=[1,1.05,1.1][Math.floor(Math.random()*3)];ph=0;
- const mw=16.5*K*S,mh=14.7*S;bx=by=0;
- if(dir===0)by=-(Y0+mh);else if(dir===1)by=H*.8-Y0;else if(dir===2)bx=W-X0;else bx=-(X0+mw);apply()}
-function move(dt){const v=H*.16*spd*dt,mw=16.5*K*S,mh=14.7*S;let done=false;ph+=dt*2.2;
- if(dir===0){by+=v;done=by>H*.8-Y0}else if(dir===1){by-=v;done=by<-(Y0+mh)}else if(dir===2){bx-=v;done=bx<-(X0+mw)}else{bx+=v;done=bx>W-X0}
+let pd=-1,pw=false,rot=0,pc=0;
+function gm(){const mw=16.5*K*S,mh=14.7*S,c=Math.abs(Math.cos(rot)),n=Math.abs(Math.sin(rot));return{cx:X0+mw/2,cy:Y0+mh/2,hw:c*mw/2+n*mh/2,hh:n*mw/2+c*mh/2}}
+function newPass(){do{dir=Math.floor(Math.random()*4);wavy=Math.random()<1/3}while(dir===pd&&wavy===pw);pd=dir;pw=wavy;
+ spd=[1,1.05,1.1][Math.floor(Math.random()*3)];ph=0;
+ rot=pc++===0?0:[0,90,180,240][Math.floor(Math.random()*4)]*Math.PI/180;
+ const m=gm();bx=by=0;
+ if(dir===0)by=-m.hh-m.cy;else if(dir===1)by=H*.8+m.hh-m.cy;else if(dir===2)bx=W+m.hw-m.cx;else bx=-m.hw-m.cx;apply()}
+function move(dt){const v=H*.16*spd*dt,m=gm();let done=false;ph+=dt*2.2;
+ if(dir===0){by+=v;done=by>H*.8+m.hh-m.cy}else if(dir===1){by-=v;done=by<-m.hh-m.cy}else if(dir===2){bx-=v;done=bx<-m.hw-m.cx}else{bx+=v;done=bx>W+m.hw-m.cx}
  if(done)newPass();else apply()}
 let hist=[],left=10,visited=new Set(),marks=[],fl=null,trail=[],over=false,drag=null,first=true;
 function dart(x,y,s,spin){g.save();g.translate(x,y);g.rotate(spin);g.scale(s,s);
@@ -73,12 +76,12 @@ function draw(now){requestAnimationFrame(draw);move(lt?Math.min(.05,(now-lt)/100
  const t=now/1000;g.lineWidth=2;g.lineCap='round';
  for(let k=0;k<16;k++){const by=H*(k+.5)/16,amp=5+k*.4,ph=k*1.7,sp=.6+(k%3)*.25;g.strokeStyle='rgba(255,255,255,'+(.07+(k%4)*.03)+')';g.beginPath();
   for(let x=0;x<=W+12;x+=12){const y=by+Math.sin(x*.018+t*sp+ph)*amp+Math.sin(x*.007-t*.5+k)*amp*.6;x?g.lineTo(x,y):g.moveTo(x,y)}g.stroke()}
- g.save();g.beginPath();g.rect(0,0,W,H*.8);g.clip();g.translate(mx,my);g.strokeStyle='rgba(255,255,255,.25)';g.lineWidth=7+Math.sin(t*1.5)*2;g.lineJoin='round';polys.forEach(p=>{g.beginPath();p.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.stroke()});
+ g.save();g.beginPath();g.rect(0,0,W,H*.8);g.clip();{const m=gm();g.translate(mx+m.cx,my+m.cy);g.rotate(rot);g.translate(-m.cx,-m.cy)}g.strokeStyle='rgba(255,255,255,.25)';g.lineWidth=7+Math.sin(t*1.5)*2;g.lineJoin='round';polys.forEach(p=>{g.beginPath();p.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.stroke()});
  g.fillStyle='#e8dfc4';g.strokeStyle='#7d735a';g.lineWidth=1.2;g.lineJoin='round';
  polys.forEach(p=>{g.beginPath();p.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.fill();g.stroke()});
  g.setLineDash([4,3]);g.strokeStyle='#f4ecd688';g.strokeRect(IN.x,IN.y,IN.w,IN.h);g.setLineDash([]);g.beginPath();okp.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.fill();g.stroke();
  g.font='600 11px "Shippori Mincho B1",serif';g.textAlign='center';
- visited.forEach(i=>{const[n,lo,la]=P[i],[x,y]=i===46?okc:px(lo,la);g.fillStyle='#c8322b';g.beginPath();g.arc(x,y,3.5,0,7);g.fill();g.fillStyle='#3a3320';g.fillText(n,x,y-7)});
+ visited.forEach(i=>{const[n,lo,la]=P[i],[x,y]=i===46?okc:px(lo,la);g.fillStyle='#c8322b';g.beginPath();g.arc(x,y,3.5,0,7);g.fill();g.fillStyle='#3a3320';g.save();g.translate(x,y);g.rotate(-rot);g.fillText(n,0,-7);g.restore()});
  marks.forEach(m=>dart(m.x,m.y,.36,m.r));g.restore();
  if(trail.length>1){g.strokeStyle='#f4ecd6aa';g.lineWidth=3;g.lineCap='round';g.beginPath();trail.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.stroke()}
  if(fl){let u=Math.min(1,(now-fl.t0)/fl.dur),e=1-(1-u)*(1-u);
@@ -86,7 +89,7 @@ function draw(now){requestAnimationFrame(draw);move(lt?Math.min(.05,(now-lt)/100
   dart(x,y,1.3-.94*e,u*9);if(u>=1)land()}
  else if(!over){const dx=drag&&trail.length?Math.max(-W*.2,Math.min(W*.2,(trail[trail.length-1].x-drag.x)*.3)):0;dart(W/2+dx,H*.9,1.3,0)}}
 function banner(t,s){const b=$('banner');b.querySelector('h1').textContent=t;b.querySelector('p').textContent=s;b.classList.add('on');clearTimeout(banner.h);banner.h=setTimeout(()=>b.classList.remove('on'),1500)}
-function land(){const{tx:x0,ty:y0}=fl;const x=x0-mx,y=y0-my;const[lo,la]=geo(x,y);let bi=0,bd=9;const inIn=x>=IN.x&&x<=IN.x+IN.w&&y>=IN.y&&y<=IN.y+IN.h;
+function land(){const{tx:x0,ty:y0}=fl;const m=gm(),dx=x0-mx-m.cx,dy=y0-my-m.cy,co=Math.cos(rot),si=Math.sin(rot),x=dx*co+dy*si+m.cx,y=-dx*si+dy*co+m.cy;const[lo,la]=geo(x,y);let bi=0,bd=9;const inIn=x>=IN.x&&x<=IN.x+IN.w&&y>=IN.y&&y<=IN.y+IN.h;
  P.forEach((p,i)=>{const d=Math.hypot((lo-p[1])*K,la-p[2]);if(d<bd){bd=d;bi=i}});
  if(inIn)bi=46;const onLand=y0<H*.8&&(inIn||polys.some(p=>inPoly(x,y,p))||bd<.4);
  marks.push({x,y,r:Math.random()*6.28});fl=null;
@@ -99,7 +102,7 @@ function end(){
   if(b<0){li.className='x';li.append('海(はずれ)')}else li.append(pref(P[b][0])+(hist.indexOf(b)<i?'(再訪)':''));ol.appendChild(li)});
 
  $('end').classList.add('on')}
-function reset(){hist=[];left=10;visited=new Set();marks=[];fl=null;over=false;first=true;newPass();$('left').textContent=10;$('end').classList.remove('on');$('hint').style.opacity=.75}
+function reset(){hist=[];left=10;visited=new Set();marks=[];fl=null;over=false;first=true;pc=0;newPass();$('left').textContent=10;$('end').classList.remove('on');$('hint').style.opacity=.75}
 $('again').onclick=reset;
 function launch(vx,vy){const sN=Math.hypot(vx,vy)*1000/H;
  if(vy>-.25||sN<.8){banner('もっと勢いよく!','上に向かって素早くスワイプしてください。');return}
