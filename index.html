@@ -8,8 +8,9 @@
 <meta property="og:description" content="5投で旅先を決めよう">
 <meta name="twitter:card" content="summary">
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
 <style>
-:root{color-scheme:dark;--bg:#0b3157;--ring:#143a31;--land:#e8dfc4;--red:#c8322b;--ink:#f4ecd6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{color-scheme:dark;--bg:#0b3157;--red:#c8322b;--ink:#f4ecd6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html,body{height:100%;margin:0;background:var(--bg);overflow:hidden;color:var(--ink);font-family:'Shippori Mincho B1','Hiragino Mincho ProN','Yu Mincho',serif;touch-action:none;user-select:none;-webkit-user-select:none}
 #app{position:relative;height:100%}
 canvas{display:block;width:100%;height:100%}
@@ -20,46 +21,71 @@ canvas{display:block;width:100%;height:100%}
 #banner h1{display:table;margin:0 auto;padding:10px 28px;font-size:clamp(30px,9vw,52px);font-weight:800;background:#0b3157f2;border:3px solid var(--red);border-radius:6px;color:var(--ink)}
 #banner p{display:table;margin:8px auto 0;padding:4px 14px;font-size:16px;background:#0b3157f2;border-radius:4px}#banner p:empty{display:none}
 #hint{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:0;right:0;text-align:center;font-size:14px;opacity:.75;pointer-events:none}
+#credit{position:absolute;bottom:calc(3px + env(safe-area-inset-bottom,0px));right:8px;font-size:10px;opacity:.4;pointer-events:none}
 #end{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#0b3157ea;text-align:center}
 #end.on{display:flex}
 #end h2{margin:0;font-size:34px;font-weight:800}
-#end .n{font-size:40px;font-weight:800;line-height:1}
 #trip{list-style:none;margin:6px 0;padding:0;columns:2;column-gap:32px;text-align:left;font-size:19px;line-height:1.9}#trip li{break-inside:avoid}#trip .x{opacity:.5}#trip b{font-weight:800;display:inline-block;width:1.8em}
-#end p{margin:0;max-width:20em;line-height:1.7}
 button{font:inherit;font-weight:800;font-size:18px;color:var(--ink);background:var(--red);border:0;border-radius:6px;padding:12px 28px;margin-top:12px;cursor:pointer}
 button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 </style></head><body>
 <div id="app"><canvas id="c"></canvas>
 <div class="hud"><div>残り <b id="left">5</b> 投</div></div>
 <div id="banner"><h1></h1><p></p></div>
-<div id="hint">上にスワイプで投擲</div>
+<div id="hint">地図を読み込み中…</div>
+<div id="credit">地図データ: 地球地図日本(国土地理院)</div>
 <div id="end"><h2>旅行先が決まりました</h2><ol id="trip"></ol><button id="again">もう一度</button></div>
 </div>
 <script>
-const P=[["北海道",141.35,43.06],["青森",140.74,40.82],["岩手",141.15,39.70],["宮城",140.87,38.27],["秋田",140.10,39.72],["山形",140.36,38.24],["福島",140.47,37.75],["茨城",140.45,36.34],["栃木",139.88,36.57],["群馬",139.06,36.39],["埼玉",139.65,35.86],["千葉",140.12,35.61],["東京",139.69,35.69],["神奈川",139.64,35.45],["新潟",139.02,37.90],["富山",137.21,36.70],["石川",136.63,36.59],["福井",136.22,36.07],["山梨",138.57,35.66],["長野",138.18,36.65],["岐阜",136.72,35.39],["静岡",138.38,34.98],["愛知",136.91,35.18],["三重",136.51,34.73],["滋賀",135.87,35.00],["京都",135.76,35.02],["大阪",135.52,34.69],["兵庫",135.18,34.69],["奈良",135.83,34.69],["和歌山",135.17,34.23],["鳥取",134.24,35.50],["島根",133.05,35.47],["岡山",133.93,34.66],["広島",132.46,34.40],["山口",131.47,34.19],["徳島",134.56,34.07],["香川",134.04,34.34],["愛媛",132.77,33.84],["高知",133.53,33.56],["福岡",130.42,33.61],["佐賀",130.30,33.25],["長崎",129.87,32.75],["熊本",130.74,32.79],["大分",131.61,33.24],["宮崎",131.42,31.91],["鹿児島",130.56,31.56],["沖縄",127.7,26.3]];
-const LAND=[
-[140,41.4,141,41.4,140.3,42.6,141.4,43.2,140.4,43.3,141.7,45.4,142.6,44.7,145.3,44.3,145.5,43.3,143.3,42,141.9,42.6,141,42.5,140.8,41.8],
-[130.9,34,131.7,34.5,132.9,35.5,134.5,35.6,135.5,35.7,136,36,136.7,37.3,137.3,36.9,138.3,37.5,139.4,38.3,139.8,39.5,140,40.5,140,41.1,140.8,41.2,141.4,41.4,141.5,40.4,142,39.5,141.6,38.3,141,37,140.6,36.2,140.9,35.7,140.2,35.1,139.8,35.1,139.7,35.3,139.1,34.9,138.2,34.6,137,34.6,136.9,34.9,136.3,34.3,135.8,33.5,135.2,34,135,34.6,134,34.7,132.8,34.2,131.5,33.9],
-[132.5,33.5,133,34.2,134.6,34.2,134.7,33.8,134.2,33.3,133,32.7],
-[129.8,33,130.9,33.9,131.7,33.6,131.9,32.6,131.4,31.4,130.7,31,130.2,31.3,130.2,32.5]];
-const K=.8,LO=129.5,LA=45.7,$=id=>document.getElementById(id);
-const cv=$('c'),g=cv.getContext('2d');
-let W,H,dpr,S,X0,Y0,polys=[],IN,okp,okc;
-const px=(lo,la)=>[X0+(lo-LO)*K*S,Y0+(LA-la)*S];
-const geo=(x,y)=>[LO+(x-X0)/(K*S),LA-(y-Y0)/S];
-function fit(){dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
- const ah=H*.5;S=Math.min(W*.88/(16.5*K),ah/14.7);X0=(W-16.5*K*S)/2;Y0=H*.07+(ah-14.7*S)/2;
- IN={x:X0+(139.3-LO)*K*S,y:Y0+(LA-33.8)*S,w:6.7*K*S,h:2.8*S};
- okp=[.12,.88,.32,.62,.48,.32,.62,.14,.78,.2,.64,.5,.48,.76,.26,.96].reduce((a,v,i,r)=>i%2?a:a.concat([[IN.x+IN.w*v,IN.y+IN.h*r[i+1]]]),[]);okc=[IN.x+IN.w*.5,IN.y+IN.h*.5];
- polys=LAND.map(a=>{const r=[];for(let i=0;i<a.length;i+=2)r.push(px(a[i],a[i+1]));return r});}
-function inPoly(x,y,p){let c=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const[a,b]=p[i],[d,e]=p[j];if((b>y)!=(e>y)&&x<(d-a)*(y-b)/(e-b)+a)c=!c}return c}
+const NAMES=["北海道","青森","岩手","宮城","秋田","山形","福島","茨城","栃木","群馬","埼玉","千葉","東京","神奈川","新潟","富山","石川","福井","山梨","長野","岐阜","静岡","愛知","三重","滋賀","京都","大阪","兵庫","奈良","和歌山","鳥取","島根","岡山","広島","山口","徳島","香川","愛媛","高知","福岡","佐賀","長崎","熊本","大分","宮崎","鹿児島","沖縄"];
 const pref=n=>n==='北海道'?n:n==='東京'?'東京都':(n==='大阪'||n==='京都')?n+'府':n+'県';
+const $=id=>document.getElementById(id);
+const cv=$('c'),g=cv.getContext('2d');
+let W,H,dpr,S,X0,Y0,okX0,okY0,okScale,okBoxScreen,feats=null,mainBox,okBox,ready=false;
+const px=(x,y)=>[X0+(x-mainBox.minX)*S,Y0+(y-mainBox.minY)*S];
+const geo=(x,y)=>[(x-X0)/S+mainBox.minX,(y-Y0)/S+mainBox.minY];
+const pxOk=(x,y)=>[okX0+(x-okBox.minX)*okScale,okY0+(y-okBox.minY)*okScale];
+const geoOk=(x,y)=>[(x-okX0)/okScale+okBox.minX,(y-okY0)/okScale+okBox.minY];
+function fit(){dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr}
+function layout(){if(!ready)return;
+ const mw=mainBox.maxX-mainBox.minX,mh=mainBox.maxY-mainBox.minY,ah=H*.54;
+ S=Math.min(W*.94/mw,ah/mh);X0=(W-mw*S)/2;Y0=H*.04+(ah-mh*S)/2;
+ const boxW=mw*S*.26,boxH=mh*S*.22;okBoxScreen={x:X0+mw*S*.02,y:Y0+mh*S*.76,w:boxW,h:boxH};
+ const okw=okBox.maxX-okBox.minX,okh=okBox.maxY-okBox.minY;
+ okScale=Math.min(okBoxScreen.w/okw,okBoxScreen.h/okh);
+ okX0=okBoxScreen.x+(okBoxScreen.w-okw*okScale)/2;okY0=okBoxScreen.y+(okBoxScreen.h-okh*okScale)/2}
+function ringPtsWith(ring,fn){return ring.map(([x,y])=>fn(x,y))}
+function polyContains(polys,tx,ty){
+ for(const poly of polys){let inside=false;
+  for(const ring of poly)for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+   const[xi,yi]=ring[i],[xj,yj]=ring[j];
+   if(((yi>ty)!==(yj>ty))&&(tx<(xj-xi)*(ty-yi)/(yj-yi)+xi))inside=!inside}
+  if(inside)return true}
+ return false}
+async function loadMap(){
+ try{
+  const res=await fetch('https://cdn.jsdelivr.net/npm/jpn-atlas@1.0.2/japan/japan.json');
+  const topo=await res.json();
+  const fc=topojson.feature(topo,topo.objects.prefectures);
+  feats=new Array(47);
+  fc.features.forEach(f=>{const idx=parseInt(f.id,10)-1;if(idx<0||idx>46)return;
+   const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+   let big=polys[0][0],bn=big.length;polys.forEach(p=>{if(p[0].length>bn){bn=p[0].length;big=p[0]}});
+   let cx=0,cy=0;big.forEach(([x,y])=>{cx+=x;cy+=y});cx/=big.length;cy/=big.length;
+   let bminX=1e9,bminY=1e9,bmaxX=-1e9,bmaxY=-1e9;big.forEach(([x,y])=>{if(x<bminX)bminX=x;if(x>bmaxX)bmaxX=x;if(y<bminY)bminY=y;if(y>bmaxY)bmaxY=y});
+   feats[idx]={polys,cx,cy,bbox:{minX:bminX,minY:bminY,maxX:bmaxX,maxY:bmaxY}}});
+  mainBox={minX:1e9,minY:1e9,maxX:-1e9,maxY:-1e9};
+  for(let i=0;i<46;i++){const b=feats[i].bbox;if(b.minX<mainBox.minX)mainBox.minX=b.minX;if(b.maxX>mainBox.maxX)mainBox.maxX=b.maxX;if(b.minY<mainBox.minY)mainBox.minY=b.minY;if(b.maxY>mainBox.maxY)mainBox.maxY=b.maxY}
+  okBox={minX:1e9,minY:1e9,maxX:-1e9,maxY:-1e9};
+  feats[46].polys.forEach(poly=>poly.forEach(ring=>ring.forEach(([x,y])=>{if(x<okBox.minX)okBox.minX=x;if(x>okBox.maxX)okBox.maxX=x;if(y<okBox.minY)okBox.minY=y;if(y>okBox.maxY)okBox.maxY=y})));
+  ready=true;layout();pc=0;newPass();if(first)$('hint').textContent='上にスワイプで投擲'}
+ catch(e){$('hint').textContent='地図の読み込みに失敗しました。通信環境をご確認のうえ再読み込みしてください。'}}
 let mx=0,my=0,dir=0,lt=0;
 let bx=0,by=0,wavy=false,spd=1,ph=0;
 function apply(){mx=bx;my=by;if(!wavy)return;const w=Math.sin(ph);if(dir<2)mx+=W*.18*w;else my+=H*.07*w}
 let pd=-1,pw=false,rot=0,pc=0;
-function gm(){const mw=16.5*K*S,mh=14.7*S,c=Math.abs(Math.cos(rot)),n=Math.abs(Math.sin(rot));return{cx:X0+mw/2,cy:Y0+mh/2,hw:c*mw/2+n*mh/2,hh:n*mw/2+c*mh/2}}
-function newPass(){do{dir=Math.floor(Math.random()*4);wavy=Math.random()<1/3}while(dir===pd&&wavy===pw);pd=dir;pw=wavy;
+function gm(){const mw=(mainBox.maxX-mainBox.minX)*S,mh=(mainBox.maxY-mainBox.minY)*S,c=Math.abs(Math.cos(rot)),n=Math.abs(Math.sin(rot));return{cx:X0+mw/2,cy:Y0+mh/2,hw:c*mw/2+n*mh/2,hh:n*mw/2+c*mh/2}}
+function newPass(){if(!ready)return;do{dir=Math.floor(Math.random()*4);wavy=Math.random()<1/3}while(dir===pd&&wavy===pw);pd=dir;pw=wavy;
  spd=[1,1.05,1.1][Math.floor(Math.random()*3)];ph=0;
  rot=pc++===0?0:[0,90,180,240][Math.floor(Math.random()*4)]*Math.PI/180;
  const m=gm();bx=by=0;
@@ -72,37 +98,41 @@ function dart(x,y,s,spin){g.save();g.translate(x,y);g.rotate(spin);g.scale(s,s);
  g.fillStyle='#0006';g.beginPath();g.ellipse(4,6,16,16,0,0,7);g.fill();
  for(let i=0;i<4;i++){g.save();g.rotate(i*Math.PI/2+Math.PI/4);g.fillStyle=i%2?'#f4ecd6':'#c8322b';g.beginPath();g.ellipse(0,-12,6,12,0,0,7);g.fill();g.restore()}
  g.fillStyle='#262626';g.strokeStyle='#f4ecd6';g.lineWidth=1.5;g.beginPath();g.arc(0,0,5,0,7);g.fill();g.stroke();g.restore()}
-function draw(now){requestAnimationFrame(draw);move(lt?Math.min(.05,(now-lt)/1000):0);lt=now;g.setTransform(dpr,0,0,dpr,0,0);const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#2a86b0');gr.addColorStop(1,'#0b3157');g.fillStyle=gr;g.fillRect(0,0,W,H);
+function draw(now){requestAnimationFrame(draw);if(ready)move(lt?Math.min(.05,(now-lt)/1000):0);lt=now;g.setTransform(dpr,0,0,dpr,0,0);const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#2a86b0');gr.addColorStop(1,'#0b3157');g.fillStyle=gr;g.fillRect(0,0,W,H);
  const t=now/1000;g.lineWidth=2;g.lineCap='round';
  for(let k=0;k<16;k++){const by=H*(k+.5)/16,amp=5+k*.4,ph=k*1.7,sp=.6+(k%3)*.25;g.strokeStyle='rgba(255,255,255,'+(.07+(k%4)*.03)+')';g.beginPath();
   for(let x=0;x<=W+12;x+=12){const y=by+Math.sin(x*.018+t*sp+ph)*amp+Math.sin(x*.007-t*.5+k)*amp*.6;x?g.lineTo(x,y):g.moveTo(x,y)}g.stroke()}
- g.save();g.beginPath();g.rect(0,0,W,H*.8);g.clip();{const m=gm();g.translate(mx+m.cx,my+m.cy);g.rotate(rot);g.translate(-m.cx,-m.cy)}g.strokeStyle='rgba(255,255,255,.25)';g.lineWidth=7+Math.sin(t*1.5)*2;g.lineJoin='round';polys.forEach(p=>{g.beginPath();p.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.stroke()});
- g.fillStyle='#e8dfc4';g.strokeStyle='#7d735a';g.lineWidth=1.2;g.lineJoin='round';
- polys.forEach(p=>{g.beginPath();p.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.fill();g.stroke()});
- g.setLineDash([4,3]);g.strokeStyle='#f4ecd688';g.strokeRect(IN.x,IN.y,IN.w,IN.h);g.setLineDash([]);g.beginPath();okp.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.fill();g.stroke();
- g.font='600 11px "Shippori Mincho B1",serif';g.textAlign='center';
- visited.forEach(i=>{const[n,lo,la]=P[i],[x,y]=i===46?okc:px(lo,la);g.fillStyle='#c8322b';g.beginPath();g.arc(x,y,3.5,0,7);g.fill();g.fillStyle='#3a3320';g.save();g.translate(x,y);g.rotate(-rot);g.fillText(n,0,-7);g.restore()});
- marks.forEach(m=>dart(m.x,m.y,.36,m.r));g.restore();
+ if(ready){
+  g.save();g.beginPath();g.rect(0,0,W,H*.8);g.clip();{const m=gm();g.translate(mx+m.cx,my+m.cy);g.rotate(rot);g.translate(-m.cx,-m.cy)}
+  g.fillStyle='#e8dfc4';g.strokeStyle='#7d735a';g.lineWidth=1;g.lineJoin='round';
+  for(let i=0;i<46;i++){const f=feats[i];g.beginPath();f.polys.forEach(poly=>poly.forEach(ring=>{const pts=ringPtsWith(ring,px);pts.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath()}));g.fill('evenodd');g.stroke()}
+  g.setLineDash([4,3]);g.strokeStyle='#f4ecd688';g.strokeRect(okBoxScreen.x,okBoxScreen.y,okBoxScreen.w,okBoxScreen.h);g.setLineDash([]);
+  {const f=feats[46];g.beginPath();f.polys.forEach(poly=>poly.forEach(ring=>{const pts=ringPtsWith(ring,pxOk);pts.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath()}));g.fill('evenodd');g.stroke()}
+  g.font='600 11px "Shippori Mincho B1",serif';g.textAlign='center';
+  visited.forEach(i=>{const f=feats[i];const[x,y]=i===46?pxOk(f.cx,f.cy):px(f.cx,f.cy);g.fillStyle='#c8322b';g.beginPath();g.arc(x,y,3.5,0,7);g.fill();g.fillStyle='#3a3320';g.save();g.translate(x,y);g.rotate(-rot);g.fillText(NAMES[i],0,-7);g.restore()});
+  marks.forEach(m=>dart(m.x,m.y,.36,m.r));g.restore()}
  if(trail.length>1){g.strokeStyle='#f4ecd6aa';g.lineWidth=3;g.lineCap='round';g.beginPath();trail.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.stroke()}
  if(fl){let u=Math.min(1,(now-fl.t0)/fl.dur),e=1-(1-u)*(1-u);
   const x=fl.ox+(fl.tx-fl.ox)*e,y=fl.oy+(fl.ty-fl.oy)*e-Math.sin(Math.PI*u)*H*.05;
   dart(x,y,1.3-.94*e,u*9);if(u>=1)land()}
  else if(!over){const dx=drag&&trail.length?Math.max(-W*.2,Math.min(W*.2,(trail[trail.length-1].x-drag.x)*.3)):0;dart(W/2+dx,H*.9,1.3,0)}}
 function banner(t,s){const b=$('banner');b.querySelector('h1').textContent=t;b.querySelector('p').textContent=s;b.classList.add('on');clearTimeout(banner.h);banner.h=setTimeout(()=>b.classList.remove('on'),1500)}
-function land(){const{tx:x0,ty:y0}=fl;const m=gm(),dx=x0-mx-m.cx,dy=y0-my-m.cy,co=Math.cos(rot),si=Math.sin(rot),x=dx*co+dy*si+m.cx,y=-dx*si+dy*co+m.cy;const[lo,la]=geo(x,y);let bi=0,bd=9;const inIn=inPoly(x,y,okp);
- P.forEach((p,i)=>{const d=Math.hypot((lo-p[1])*K,la-p[2]);if(d<bd){bd=d;bi=i}});
- if(inIn)bi=46;const onLand=y0<H*.8&&(inIn||polys.some(p=>inPoly(x,y,p))||bd<.4);
+function land(){const{tx:x0,ty:y0}=fl;const m=gm(),dx=x0-mx-m.cx,dy=y0-my-m.cy,co=Math.cos(rot),si=Math.sin(rot),x=dx*co+dy*si+m.cx,y=-dx*si+dy*co+m.cy;
+ let bi=-1;
+ if(x>=okBoxScreen.x&&x<=okBoxScreen.x+okBoxScreen.w&&y>=okBoxScreen.y&&y<=okBoxScreen.y+okBoxScreen.h){
+  const[tx,ty]=geoOk(x,y);if(polyContains(feats[46].polys,tx,ty))bi=46}
+ else{const[tx,ty]=geo(x,y);for(let i=0;i<46;i++){if(polyContains(feats[i].polys,tx,ty)){bi=i;break}}}
+ const onLand=y0<H*.8&&bi>=0;
  marks.push({x,y,r:Math.random()*6.28});fl=null;
- hist.push(onLand?bi:-1);if(onLand){const nw=!visited.has(bi);visited.add(bi);banner(pref(P[bi][0])+'に着弾','')}
+ hist.push(onLand?bi:-1);if(onLand){visited.add(bi);banner(pref(NAMES[bi])+'に着弾','')}
  else banner('海に落ちた…',x0<0||x0>W||y0<0?'場外です。強さを調整してみよう。':'次は陸を狙おう。');
   if(left===0){over=true;setTimeout(end,1600)}}
 function end(){
  const ol=$('trip');ol.innerHTML='';
  hist.forEach((b,i)=>{const li=document.createElement('li'),n=document.createElement('b');n.textContent=(i+1)+'.';li.appendChild(n);
-  if(b<0){li.className='x';li.append('海(はずれ)')}else li.append(pref(P[b][0]));ol.appendChild(li)});
-
+  if(b<0){li.className='x';li.append('海(はずれ)')}else li.append(pref(NAMES[b]));ol.appendChild(li)});
  $('end').classList.add('on')}
-function reset(){hist=[];left=5;visited=new Set();marks=[];fl=null;over=false;first=true;pc=0;newPass();$('left').textContent=5;$('end').classList.remove('on');$('hint').style.opacity=.75}
+function reset(){hist=[];left=5;visited=new Set();marks=[];fl=null;over=false;first=true;pc=0;newPass();$('left').textContent=5;$('end').classList.remove('on');if(ready)$('hint').style.opacity=.75}
 $('again').onclick=reset;
 function launch(vx,vy){const sN=Math.hypot(vx,vy)*1000/H;
  if(vy>-.25||sN<.8){banner('もっと勢いよく!','上に向かって素早くスワイプしてください。');return}
@@ -110,13 +140,13 @@ function launch(vx,vy){const sN=Math.hypot(vx,vy)*1000/H;
  const j=()=>(Math.random()-.5)*H*.02;
  fl={t0:performance.now(),dur:650+D*250,ox,oy,tx:ox+Math.sin(a)*L+j(),ty:oy-Math.cos(a)*L+j()};
  left--;$('left').textContent=left;if(first){first=false;$('hint').style.opacity=0}}
-cv.addEventListener('pointerdown',e=>{if(fl||over)return;cv.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY};trail=[{x:e.clientX,y:e.clientY,t:e.timeStamp}]});
+cv.addEventListener('pointerdown',e=>{if(fl||over||!ready)return;cv.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY};trail=[{x:e.clientX,y:e.clientY,t:e.timeStamp}]});
 cv.addEventListener('pointermove',e=>{if(!drag)return;trail.push({x:e.clientX,y:e.clientY,t:e.timeStamp})});
 function up(e){if(!drag)return;const last=trail[trail.length-1];let f=trail[0];
  for(const p of trail)if(p.t>=last.t-120){f=p;break}
  const dt=Math.max(last.t-f.t,1);drag=null;trail=[];
  if(last.t-f.t<8){return}launch((last.x-f.x)/dt,(last.y-f.y)/dt)}
 cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',()=>{drag=null;trail=[]});
-addEventListener('resize',()=>{fit();marks=[];newPass()});
-fit();newPass();requestAnimationFrame(draw);
+addEventListener('resize',()=>{fit();layout();marks=[];if(ready)newPass()});
+fit();requestAnimationFrame(draw);loadMap();
 </script></body></html>
