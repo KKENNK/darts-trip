@@ -78,6 +78,7 @@ async function loadMap(){
   for(let i=0;i<46;i++){const b=feats[i].bbox;if(b.minX<mainBox.minX)mainBox.minX=b.minX;if(b.maxX>mainBox.maxX)mainBox.maxX=b.maxX;if(b.minY<mainBox.minY)mainBox.minY=b.minY;if(b.maxY>mainBox.maxY)mainBox.maxY=b.maxY}
   okBox={minX:1e9,minY:1e9,maxX:-1e9,maxY:-1e9};
   feats[46].polys.forEach(poly=>poly.forEach(ring=>ring.forEach(([x,y])=>{if(x<okBox.minX)okBox.minX=x;if(x>okBox.maxX)okBox.maxX=x;if(y<okBox.minY)okBox.minY=y;if(y>okBox.maxY)okBox.maxY=y})));
+  {const f=feats[46],k=1.1;f.polysBig=f.polys.map(poly=>poly.map(ring=>ring.map(([x,y])=>[f.cx+(x-f.cx)*k,f.cy+(y-f.cy)*k])))}
   ready=true;layout();pc=0;newPass();if(first)$('hint').textContent='上にスワイプで投擲'}
  catch(e){$('hint').textContent='地図の読み込みに失敗しました。通信環境をご確認のうえ再読み込みしてください。'}}
 let mx=0,my=0,dir=0,lt=0;
@@ -120,7 +121,7 @@ function banner(t,s){const b=$('banner');b.querySelector('h1').textContent=t;b.q
 function land(){const{tx:x0,ty:y0}=fl;const m=gm(),dx=x0-mx-m.cx,dy=y0-my-m.cy,co=Math.cos(rot),si=Math.sin(rot),x=dx*co+dy*si+m.cx,y=-dx*si+dy*co+m.cy;
  let bi=-1;
  if(x>=okBoxScreen.x&&x<=okBoxScreen.x+okBoxScreen.w&&y>=okBoxScreen.y&&y<=okBoxScreen.y+okBoxScreen.h){
-  const[tx,ty]=geoOk(x,y);if(polyContains(feats[46].polys,tx,ty))bi=46}
+  const[tx,ty]=geoOk(x,y);if(polyContains(feats[46].polysBig,tx,ty))bi=46}
  else{const[tx,ty]=geo(x,y);for(let i=0;i<46;i++){if(polyContains(feats[i].polys,tx,ty)){bi=i;break}}}
  const onLand=y0<H*.8&&bi>=0;
  marks.push({x,y,r:Math.random()*6.28});fl=null;
