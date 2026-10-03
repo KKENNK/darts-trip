@@ -41,19 +41,25 @@ const NAMES=["北海道","青森","岩手","宮城","秋田","山形","福島","
 const pref=n=>n==='北海道'?n:n==='東京'?'東京都':(n==='大阪'||n==='京都')?n+'府':n+'県';
 const $=id=>document.getElementById(id);
 const cv=$('c'),g=cv.getContext('2d');
-let W,H,dpr,S,X0,Y0,okX0,okY0,okScale,okBoxScreen,feats=null,mainBox,okBox,ready=false;
+let W,H,dpr,S,X0,Y0,feats=null,mainBox,ready=false,insets=[];
 const px=(x,y)=>[X0+(x-mainBox.minX)*S,Y0+(y-mainBox.minY)*S];
 const geo=(x,y)=>[(x-X0)/S+mainBox.minX,(y-Y0)/S+mainBox.minY];
-const pxOk=(x,y)=>[okX0+(x-okBox.minX)*okScale,okY0+(y-okBox.minY)*okScale];
-const geoOk=(x,y)=>[(x-okX0)/okScale+okBox.minX,(y-okY0)/okScale+okBox.minY];
+function bboxOf(polysArr){const b={minX:1e9,minY:1e9,maxX:-1e9,maxY:-1e9};polysArr.forEach(poly=>poly.forEach(ring=>ring.forEach(([x,y])=>{if(x<b.minX)b.minX=x;if(x>b.maxX)b.maxX=x;if(y<b.minY)b.minY=y;if(y>b.maxY)b.maxY=y})));return b}
+function centroidOf(ring){let cx=0,cy=0;ring.forEach(([x,y])=>{cx+=x;cy+=y});return[cx/ring.length,cy/ring.length]}
+function scalePolys(polysArr,cx,cy,k){return polysArr.map(poly=>poly.map(ring=>ring.map(([x,y])=>[cx+(x-cx)*k,cy+(y-cy)*k])))}
 function fit(){dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr}
 function layout(){if(!ready)return;
  const mw=mainBox.maxX-mainBox.minX,mh=mainBox.maxY-mainBox.minY,ah=H*.54;
  S=Math.min(W*.94/mw,ah/mh);X0=(W-mw*S)/2;Y0=H*.04+(ah-mh*S)/2;
- const boxW=mw*S*.24,boxH=mh*S*.20;okBoxScreen={x:X0+mw*S*.02,y:Y0+mh*S*.28,w:boxW,h:boxH};
- const okw=okBox.maxX-okBox.minX,okh=okBox.maxY-okBox.minY;
- okScale=Math.min(okBoxScreen.w/okw,okBoxScreen.h/okh);
- okX0=okBoxScreen.x+(okBoxScreen.w-okw*okScale)/2;okY0=okBoxScreen.y+(okBoxScreen.h-okh*okScale)/2}
+ const bw=mw*S*.24,bh=mh*S*.15,gap=mh*S*.03,x0=X0+mw*S*.02;
+ insets.forEach((ins,i)=>{
+  const sb={x:x0,y:Y0+i*(bh+gap)+mh*S*.03,w:bw,h:bh};
+  const dw=ins.box.maxX-ins.box.minX,dh=ins.box.maxY-ins.box.minY;
+  const sc=Math.min(sb.w/dw,sb.h/dh);
+  const ox=sb.x+(sb.w-dw*sc)/2,oy=sb.y+(sb.h-dh*sc)/2;
+  ins.screenBox=sb;ins.sc=sc;ins.ox=ox;ins.oy=oy;
+  ins.toScreen=(x,y)=>[ox+(x-ins.box.minX)*sc,oy+(y-ins.box.minY)*sc];
+  ins.toLocal=(x,y)=>[(x-ox)/sc+ins.box.minX,(y-oy)/sc+ins.box.minY]})}
 function ringPtsWith(ring,fn){return ring.map(([x,y])=>fn(x,y))}
 function polyContains(polys,tx,ty){
  for(const poly of polys){let inside=false;
@@ -62,6 +68,12 @@ function polyContains(polys,tx,ty){
    if(((yi>ty)!==(yj>ty))&&(tx<(xj-xi)*(ty-yi)/(yj-yi)+xi))inside=!inside}
   if(inside)return true}
  return false}
+function clusterOthers(f,mainPolyIdx){
+ return f.polys.map((poly,pi)=>pi).filter(pi=>pi!==mainPolyIdx).map(pi=>{const[cx,cy]=centroidOf(f.polys[pi][0]);return{poly:f.polys[pi],cx,cy}})}
+function addInset(name,idx,polysArr){
+ if(!polysArr.length)return;
+ const box=bboxOf(polysArr);const[cx,cy]=(()=>{let sx=0,sy=0,n=0;polysArr.forEach(poly=>poly[0].forEach(([x,y])=>{sx+=x;sy+=y;n++}));return[sx/n,sy/n]})();
+ insets.push({name,idx,polys:polysArr,polysBig:scalePolys(polysArr,cx,cy,1.3),box})}
 async function loadMap(){
  try{
   const res=await fetch('https://cdn.jsdelivr.net/npm/jpn-atlas@1.0.2/japan/japan.json');
@@ -70,15 +82,26 @@ async function loadMap(){
   feats=new Array(47);
   fc.features.forEach(f=>{const idx=parseInt(f.id,10)-1;if(idx<0||idx>46)return;
    const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
-   let big=polys[0][0],bn=big.length;polys.forEach(p=>{if(p[0].length>bn){bn=p[0].length;big=p[0]}});
+   let mainPolyIdx=0,bn=0;polys.forEach((p,pi)=>{if(p[0].length>bn){bn=p[0].length;mainPolyIdx=pi}});
+   const big=polys[mainPolyIdx][0];
    let cx=0,cy=0;big.forEach(([x,y])=>{cx+=x;cy+=y});cx/=big.length;cy/=big.length;
    let bminX=1e9,bminY=1e9,bmaxX=-1e9,bmaxY=-1e9;big.forEach(([x,y])=>{if(x<bminX)bminX=x;if(x>bmaxX)bmaxX=x;if(y<bminY)bminY=y;if(y>bmaxY)bmaxY=y});
-   feats[idx]={polys,cx,cy,bbox:{minX:bminX,minY:bminY,maxX:bmaxX,maxY:bmaxY}}});
+   feats[idx]={polys,mainPolyIdx,cx,cy,bbox:{minX:bminX,minY:bminY,maxX:bmaxX,maxY:bmaxY},drawPolys:polys}});
   mainBox={minX:1e9,minY:1e9,maxX:-1e9,maxY:-1e9};
   for(let i=0;i<46;i++){const b=feats[i].bbox;if(b.minX<mainBox.minX)mainBox.minX=b.minX;if(b.maxX>mainBox.maxX)mainBox.maxX=b.maxX;if(b.minY<mainBox.minY)mainBox.minY=b.minY;if(b.maxY>mainBox.maxY)mainBox.maxY=b.maxY}
-  okBox={minX:1e9,minY:1e9,maxX:-1e9,maxY:-1e9};
-  feats[46].polys.forEach(poly=>poly.forEach(ring=>ring.forEach(([x,y])=>{if(x<okBox.minX)okBox.minX=x;if(x>okBox.maxX)okBox.maxX=x;if(y<okBox.minY)okBox.minY=y;if(y>okBox.maxY)okBox.maxY=y})));
-  {const f=feats[46],k=1.1;f.polysBig=f.polys.map(poly=>poly.map(ring=>ring.map(([x,y])=>[f.cx+(x-f.cx)*k,f.cy+(y-f.cy)*k])))}
+  insets=[];
+  addInset('沖縄',46,feats[46].polys);
+  const kago=clusterOthers(feats[45],feats[45].mainPolyIdx);
+  if(kago.length){addInset('奄美',45,kago.map(o=>o.poly));feats[45].drawPolys=[feats[45].polys[feats[45].mainPolyIdx]]}
+  const tokyo=clusterOthers(feats[12],feats[12].mainPolyIdx);
+  if(tokyo.length){
+   const sorted=tokyo.slice().sort((a,b)=>a.cy-b.cy);
+   let gi=sorted.length,gmax=-1;
+   for(let i=1;i<sorted.length;i++){const gp=sorted[i].cy-sorted[i-1].cy;if(gp>gmax){gmax=gp;gi=i}}
+   const izu=sorted.slice(0,gi),oga=sorted.slice(gi);
+   if(izu.length)addInset('伊豆諸島',12,izu.map(o=>o.poly));
+   if(oga.length)addInset('小笠原諸島',12,oga.map(o=>o.poly));
+   feats[12].drawPolys=[feats[12].polys[feats[12].mainPolyIdx]]}
   ready=true;layout();pc=0;newPass();if(first)$('hint').textContent='上にスワイプで投擲'}
  catch(e){$('hint').textContent='地図の読み込みに失敗しました。通信環境をご確認のうえ再読み込みしてください。'}}
 let mx=0,my=0,dir=0,lt=0;
@@ -99,6 +122,7 @@ function dart(x,y,s,spin){g.save();g.translate(x,y);g.rotate(spin);g.scale(s,s);
  g.fillStyle='#0006';g.beginPath();g.ellipse(4,6,16,16,0,0,7);g.fill();
  for(let i=0;i<4;i++){g.save();g.rotate(i*Math.PI/2+Math.PI/4);g.fillStyle=i%2?'#f4ecd6':'#c8322b';g.beginPath();g.ellipse(0,-12,6,12,0,0,7);g.fill();g.restore()}
  g.fillStyle='#262626';g.strokeStyle='#f4ecd6';g.lineWidth=1.5;g.beginPath();g.arc(0,0,5,0,7);g.fill();g.stroke();g.restore()}
+function drawFeature(polys,fn){g.beginPath();polys.forEach(poly=>poly.forEach(ring=>{const pts=ringPtsWith(ring,fn);pts.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath()}));g.fill('evenodd');g.stroke()}
 function draw(now){requestAnimationFrame(draw);if(ready)move(lt?Math.min(.05,(now-lt)/1000):0);lt=now;g.setTransform(dpr,0,0,dpr,0,0);const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#2a86b0');gr.addColorStop(1,'#0b3157');g.fillStyle=gr;g.fillRect(0,0,W,H);
  const t=now/1000;g.lineWidth=2;g.lineCap='round';
  for(let k=0;k<16;k++){const by=H*(k+.5)/16,amp=5+k*.4,ph=k*1.7,sp=.6+(k%3)*.25;g.strokeStyle='rgba(255,255,255,'+(.07+(k%4)*.03)+')';g.beginPath();
@@ -106,11 +130,11 @@ function draw(now){requestAnimationFrame(draw);if(ready)move(lt?Math.min(.05,(no
  if(ready){
   g.save();g.beginPath();g.rect(0,0,W,H*.8);g.clip();{const m=gm();g.translate(mx+m.cx,my+m.cy);g.rotate(rot);g.translate(-m.cx,-m.cy)}
   g.fillStyle='#e8dfc4';g.strokeStyle='#7d735a';g.lineWidth=1;g.lineJoin='round';
-  for(let i=0;i<46;i++){const f=feats[i];g.beginPath();f.polys.forEach(poly=>poly.forEach(ring=>{const pts=ringPtsWith(ring,px);pts.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath()}));g.fill('evenodd');g.stroke()}
-  g.setLineDash([4,3]);g.strokeStyle='#f4ecd688';g.strokeRect(okBoxScreen.x,okBoxScreen.y,okBoxScreen.w,okBoxScreen.h);g.setLineDash([]);
-  {const f=feats[46];g.beginPath();f.polys.forEach(poly=>poly.forEach(ring=>{const pts=ringPtsWith(ring,pxOk);pts.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath()}));g.fill('evenodd');g.stroke()}
+  for(let i=0;i<46;i++)drawFeature(feats[i].drawPolys,px);
+  insets.forEach(ins=>{g.setLineDash([4,3]);g.strokeStyle='#f4ecd688';g.strokeRect(ins.screenBox.x,ins.screenBox.y,ins.screenBox.w,ins.screenBox.h);g.setLineDash([]);
+   g.strokeStyle='#7d735a';drawFeature(ins.polys,ins.toScreen)});
   g.font='600 11px "Shippori Mincho B1",serif';g.textAlign='center';
-  visited.forEach(i=>{const f=feats[i];const[x,y]=i===46?pxOk(f.cx,f.cy):px(f.cx,f.cy);g.fillStyle='#c8322b';g.beginPath();g.arc(x,y,3.5,0,7);g.fill();g.fillStyle='#3a3320';g.save();g.translate(x,y);g.rotate(-rot);g.fillText(NAMES[i],0,-7);g.restore()});
+  visited.forEach(i=>{const f=feats[i];const[x,y]=px(f.cx,f.cy);g.fillStyle='#c8322b';g.beginPath();g.arc(x,y,3.5,0,7);g.fill();g.fillStyle='#3a3320';g.save();g.translate(x,y);g.rotate(-rot);g.fillText(NAMES[i],0,-7);g.restore()});
   marks.forEach(m=>dart(m.x,m.y,.36,m.r));g.restore()}
  if(trail.length>1){g.strokeStyle='#f4ecd6aa';g.lineWidth=3;g.lineCap='round';g.beginPath();trail.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.stroke()}
  if(fl){let u=Math.min(1,(now-fl.t0)/fl.dur),e=1-(1-u)*(1-u);
@@ -120,9 +144,11 @@ function draw(now){requestAnimationFrame(draw);if(ready)move(lt?Math.min(.05,(no
 function banner(t,s){const b=$('banner');b.querySelector('h1').textContent=t;b.querySelector('p').textContent=s;b.classList.add('on');clearTimeout(banner.h);banner.h=setTimeout(()=>b.classList.remove('on'),1500)}
 function land(){const{tx:x0,ty:y0}=fl;const m=gm(),dx=x0-mx-m.cx,dy=y0-my-m.cy,co=Math.cos(rot),si=Math.sin(rot),x=dx*co+dy*si+m.cx,y=-dx*si+dy*co+m.cy;
  let bi=-1;
- if(x>=okBoxScreen.x&&x<=okBoxScreen.x+okBoxScreen.w&&y>=okBoxScreen.y&&y<=okBoxScreen.y+okBoxScreen.h){
-  const[tx,ty]=geoOk(x,y);if(polyContains(feats[46].polysBig,tx,ty))bi=46}
- else{const[tx,ty]=geo(x,y);for(let i=0;i<46;i++){if(polyContains(feats[i].polys,tx,ty)){bi=i;break}}}
+ for(const ins of insets){const sb=ins.screenBox;
+  if(x>=sb.x&&x<=sb.x+sb.w&&y>=sb.y&&y<=sb.y+sb.h){
+   const[tx,ty]=ins.toLocal(x,y);if(polyContains(ins.polysBig,tx,ty)){bi=ins.idx}
+   break}}
+ if(bi<0){const[tx,ty]=geo(x,y);for(let i=0;i<46;i++){if(polyContains(feats[i].drawPolys,tx,ty)){bi=i;break}}}
  const onLand=y0<H*.8&&bi>=0;
  marks.push({x,y,r:Math.random()*6.28});fl=null;
  hist.push(onLand?bi:-1);if(onLand){visited.add(bi);banner(pref(NAMES[bi])+'に着弾','')}
