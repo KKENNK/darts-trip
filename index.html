@@ -99,7 +99,7 @@ function land(){const{tx:x0,ty:y0}=fl;const m=gm(),dx=x0-mx-m.cx,dy=y0-my-m.cy,c
 function end(){
  const ol=$('trip');ol.innerHTML='';
  hist.forEach((b,i)=>{const li=document.createElement('li'),n=document.createElement('b');n.textContent=(i+1)+'.';li.appendChild(n);
-  if(b<0){li.className='x';li.append('海(はずれ)')}else li.append(pref(P[b][0])+(hist.indexOf(b)<i?'(再訪)':''));ol.appendChild(li)});
+  if(b<0){li.className='x';li.append('海(はずれ)')}else li.append(pref(P[b][0]));ol.appendChild(li)});
 
  $('end').classList.add('on')}
 function reset(){hist=[];left=10;visited=new Set();marks=[];fl=null;over=false;first=true;pc=0;newPass();$('left').textContent=10;$('end').classList.remove('on');$('hint').style.opacity=.75}
