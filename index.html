@@ -50,7 +50,7 @@ function fit(){dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.wid
 function layout(){if(!ready)return;
  const mw=mainBox.maxX-mainBox.minX,mh=mainBox.maxY-mainBox.minY,ah=H*.54;
  S=Math.min(W*.94/mw,ah/mh);X0=(W-mw*S)/2;Y0=H*.04+(ah-mh*S)/2;
- const boxW=mw*S*.26,boxH=mh*S*.22;okBoxScreen={x:X0+mw*S*.02,y:Y0+mh*S*.76,w:boxW,h:boxH};
+ const boxW=mw*S*.24,boxH=mh*S*.20;okBoxScreen={x:X0+mw*S*.02,y:Y0+mh*S*.52,w:boxW,h:boxH};
  const okw=okBox.maxX-okBox.minX,okh=okBox.maxY-okBox.minY;
  okScale=Math.min(okBoxScreen.w/okw,okBoxScreen.h/okh);
  okX0=okBoxScreen.x+(okBoxScreen.w-okw*okScale)/2;okY0=okBoxScreen.y+(okBoxScreen.h-okh*okScale)/2}
